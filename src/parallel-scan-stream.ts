@@ -16,6 +16,7 @@ const debug = getDebugger('ddb-parallel-scan');
 let totalTableItemsCount = 0;
 let totalScannedItemsCount = 0;
 let totalFetchedItemsCount = 0;
+let consumedCapacity = 0;
 
 export async function parallelScanAsStream(
   scanParams: ScanCommandInput,
@@ -100,6 +101,7 @@ async function getItemsFromSegment({
     ...cloneDeep(scanParams),
     Segment: segmentIndex,
     TotalSegments: concurrency,
+    ReturnConsumedCapacity: 'TOTAL',
   };
 
   debug(`[${segmentIndex}/${concurrency}][start]`, {ExclusiveStartKey});
@@ -113,15 +115,16 @@ async function getItemsFromSegment({
       params.ExclusiveStartKey = ExclusiveStartKey;
     }
 
-    const {Items, LastEvaluatedKey, ScannedCount} = await scan(params, client);
+    const {Items, LastEvaluatedKey, ScannedCount, ConsumedCapacity} = await scan(params, client);
     ExclusiveStartKey = LastEvaluatedKey;
     totalScannedItemsCount += ScannedCount!;
+    consumedCapacity += ConsumedCapacity!.CapacityUnits!;
 
     debug(
       `(${Math.round((totalScannedItemsCount / totalTableItemsCount) * 100)}%) ` +
         `[${segmentIndex}/${concurrency}] [time:${Date.now() - now}ms] ` +
         `[fetched:${Items!.length}] ` +
-        `[total (fetched/scanned/table-size):${totalFetchedItemsCount}/${totalScannedItemsCount}/${totalTableItemsCount}]`
+        `CAPACITY [${consumedCapacity}]`
     );
 
     segmentItems = segmentItems.concat(Items!);
