@@ -66,6 +66,7 @@ async function getItemsFromSegment(
     ...cloneDeep(scanParams),
     Segment: segmentIndex,
     TotalSegments: concurrency,
+    ReturnConsumedCapacity: 'TOTAL',
   };
 
   debug(`[${segmentIndex}/${concurrency}][start]`, {ExclusiveStartKey});
@@ -77,10 +78,10 @@ async function getItemsFromSegment(
       params.ExclusiveStartKey = ExclusiveStartKey;
     }
 
-    const {Items, LastEvaluatedKey, ScannedCount, ConsumedCapacity: { CapacityUnits }} = await scan(params, client);
+    const {Items, LastEvaluatedKey, ScannedCount, ConsumedCapacity} = await scan(params, client);
     ExclusiveStartKey = LastEvaluatedKey;
     totalScannedItemsCount += ScannedCount!;
-    consumedCapacity += CapacityUnits;
+    consumedCapacity += ConsumedCapacity!.CapacityUnits!;
 
     segmentItems.push(...Items!);
 
